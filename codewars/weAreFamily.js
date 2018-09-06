@@ -57,13 +57,13 @@ For the reasons in the preceding two bullet points it should not matter whether 
 */
 
 class Person {
-  constructor(name, gender) {
+  constructor(name, gender = null) {
     this.name = name;
-    this.gender = gender ? gender : null;
-    this.mother = null;
-    this.father = null;
+    this.gender = null;
+    this.notSameGenderAs = [];
+    this.genderTested = false;
     this.parents = [];
-    this.spouse = null;
+    this.spouses = [];
     this.children = [];
   }
 }
@@ -71,16 +71,42 @@ class Person {
 class Family {
   constructor() {
     this.members = {};
+    this.rollbacks = [];
   }
+
   updateGender(person, gender) {
     const otherGender = gender === 'male' ? 'female' : 'male';
-    person.gender = gender; 
+    person.gender = gender;
     // check for spouse gender, set if possible
-    if (person.spouse) {
-      if (!person.spouse.gender) person.spouse.gender = otherGender;
-      else if (person.spouse.gender === gender) throw new Error('updateGender: HOMOPHOBIA ALERT!');
+    for (let spouse of person.spouses) {
+      if (!spouse.gender) this.updateGender(spouse, otherGender);
+      else if (spouse.gender === gender) throw new Error('updateGender: HOMOPHOBIA ALERT!');
     }
   }
+
+  testPossibleGenders(person, gender) {
+    const otherGender = gender === 'x' ? 'y' : 'x';
+    person.possibleGender = gender;
+    this.rollbacks.push(person);
+    let allSpousesPass = true;
+    for (const spouse of person.spouses) {
+      // if the spouse would be the same gender, fail
+      if (spouse.possibleGender === gender) return false;
+      if (allSpousesPass && spouse.possibleGender === null) {
+        allSpousesPass = this.testPossibleGenders(spouse, otherGender);
+      }
+    }
+    return allSpousesPass;
+  }
+
+  rollbackPossibleGenders() {
+    this.rollbacks.forEach(person => {
+      person.possibleGender = null;
+      person.genderTested = false;
+    });
+    this.rollbacks = [];
+  }
+
   male(name) {
     const person = this.members[name] || new Person(name, 'male');
     if (person.gender === 'female') return false;
@@ -88,6 +114,7 @@ class Family {
     this.members[name] = person;
     return true;
   }
+
   female(name) {
     const person = this.members[name] || new Person(name, 'female');
     if (person.gender === 'male') return false;
@@ -95,60 +122,105 @@ class Family {
     this.members[name] = person;
     return true;
   }
+
   isMale(name) {
     return this.members[name] && this.members[name].gender === 'male';
   }
+
   isFemale(name) {
     return this.members[name] && this.members[name].gender === 'female';
   }
+
   setParentOf(childName, parentName) {
     if (childName === parentName) return false; // can't be your own parent
     const child = this.members[childName] || new Person(childName, null);
     const parent = this.members[parentName] || new Person(parentName, null);
     // make sure child doesn't already have parents
-    if (child.parents.length > 1) return false;
-    // make deductions -- function?
-    // make sure parent gender is OK
-    if (child.parents.length === 1 && parent.gender === child.parents[0].gender) return false;
-    if (child.father && parent.gender === 'male' || child.mother && parent.gender === 'female') return false;
+    if (child.parents.length === 2 && !child.parents.includes(parent)) return false;
     // make sure child is not already a parent of the parent or vice-versa
     if (parent.parents.includes(child) || child.children.includes(parent)) return false;
+    // check own grandparent paradox
+    for (const grandParent of parent.parents) { 
+      for (const greatGrandParent of grandParent.parents) {
+        if (greatGrandParent === child) return false;
+      }
+    }
+    // all kinds of gender checks
+    if (child.parents.length === 1) {
+      const otherParent = child.parents[0];
+      if (parent.gender && parent.gender === otherParent.gender) return false;
+      // only run possible gender checks if we don't already know both genders
+      if (!parent.gender && !otherParent.gender) {
+        // if parent already has a possible gender and it doesn't work with the other parent's
+        // otherwise, run the tests
+        // try adding the new parent to child's parents array, then looping through all members and making sure that
+        // each child's parents are not with 
+        const genderCheckValid = otherParent.possibleGender
+          ? this.testPossibleGenders(parent, otherParent.possibleGender === 'x' ? 'y' : 'x')
+          : this.testPossibleGenders(parent, 'x') && this.testPossibleGenders(otherParent, 'y');
+        if (!genderCheckValid) {
+          this.rollbackPossibleGenders();
+          return false;
+        }
+        this.rollbacks = [];
+      }
+    }
     // add relationships (parents' children array)
-    parent.children.push(child);
-    child.parents.push(parent);
+    if (!parent.children.includes(child)) parent.children.push(child);
+    if (!child.parents.includes(parent)) child.parents.push(parent);
     // set spousal relationships of parents if possible
     if (child.parents.length === 2) {
-      child.parents[0].spouse = child.parents[1];
-      child.parents[1].spouse = child.parents[0];
-      // update parents' genders
-      if (parent.gender && !parent.spouse.gender) {
-        const otherGender = parent.gender === 'male' ? 'female' : 'male';
-        updateGender(parent.spouse, otherGender);
+      child.parents[0].spouses.push(child.parents[1]);
+      child.parents[1].spouses.push(child.parents[0]);
+      // update genders if possible
+      if (parent.spouses[0].gender) {
+        const gender = parent.spouses[0].gender === 'male' ? 'female' : 'male';
+        this.updateGender(parent, gender);
       }
     }
     this.members[childName] = child;
     this.members[parentName] = parent;
     return true;
   }
+
   getChildrenOf(name) {
-    let strings = [];
+    const strings = [];
     if (this.members[name]) {
       this.members[name].children.forEach(child => strings.push(child.name));
     }
-    return strings;
+    return strings.sort();
   }
+
   getParentsOf(name) {
-    let strings = [];
+    const strings = [];
     if (this.members[name]) {
       this.members[name].parents.forEach(parent => strings.push(parent.name));
     }
-    return strings;
+    return strings.sort();
   }
 }
 
 const fam = new Family();
-fam.setParentOf("Vera", "George");
-fam.setParentOf("Vera", "Vanessa");
-fam.female("Vanessa");
-fam.female("George"); // false, because:
-fam.isMale("George"); // ...this is true.
+fam.setParentOf("AB","A");
+fam.setParentOf("AB","B"); // not same as A
+fam.setParentOf("CD","C"); // not same as D
+fam.setParentOf("CD","D"); // not same as C
+fam.setParentOf("EF","E"); // not same as 
+fam.setParentOf("EF","F");
+fam.setParentOf("GH","G");
+fam.setParentOf("GH","H");
+fam.setParentOf("IJ","I");
+fam.setParentOf("IJ","J");
+fam.setParentOf("KL","K");
+fam.setParentOf("KL","L");
+fam.setParentOf("MN","M");
+fam.setParentOf("MN","N");
+fam.setParentOf("OP","O"); // not same as P
+fam.setParentOf("OP","P");
+fam.setParentOf("QR","Q");
+fam.setParentOf("QR","R");
+fam.setParentOf("ST","S");
+fam.setParentOf("ST","T");
+fam.setParentOf("AC","A");
+fam.setParentOf("AC","C"); 
+fam.setParentOf("RO","O");
