@@ -16,35 +16,30 @@ Once the same number occurs twice in the sequence, the sequence is guaranteed to
 Your task is to write a program which will print a list of all happy numbers between 1 and x (both inclusive) */
 
 function happyNumbers(x) {
-  // numbers only contain 1s and 0s
   const happyNumberSet = new Set([1]);
-  const unhappyNumberSet = new Set([0]);
+  const unhappyNumberSet = new Set();
   function tryNumber(n, sequenceSoFar = new Set()) {
-    // if we know it's happy, let's push the whole damn sequence in why not
     if (happyNumberSet.has(n)) return sequenceSoFar.forEach(value => happyNumberSet.add(value));
-    // already seen it? we're done here
-    if (sequenceSoFar.has(n) || unhappyNumberSet.has(n)) return sequenceSoFar.forEach(value => unhappyNumberSet.add(value));
+    if (sequenceSoFar.has(n) || unhappyNumberSet.has(n)) {
+      return sequenceSoFar.forEach(value => unhappyNumberSet.add(value));
+    }
     sequenceSoFar.add(n);
-    // add to sequence
-    // split number into digits and add em up
     const sum = n.toString().split('').reduce((acc, e) => acc + (parseInt(e, 10) ** 2), 0);
-    // is it happy?
-    if (sum === 1 || happyNumberSet.has(sum)) return sequenceSoFar.forEach(value => happyNumberSet.add(value));
-    // otherwise keep going
+    if (sum === 1 || happyNumberSet.has(sum)) {
+      return sequenceSoFar.forEach(value => happyNumberSet.add(value));
+    }
     tryNumber(sum, sequenceSoFar);
   }
-  // loop through all numbers between 2 and x
   for (let i = 2; i <= x; i += 1) {
     if (!happyNumberSet.has(i) && !unhappyNumberSet.has(i)) tryNumber(i);
   }
-  let output = [];
+  const output = [];
   happyNumberSet.forEach(val => {
     if (val <= x) output.push(val);
   });
-  output = output.sort((a, b) => a - b);
-  return output;
+  return output.sort((a, b) => a - b);
 }
 
 happyNumbers(10); // [ 1, 7, 10 ])
 happyNumbers(50); // [ 1, 7, 10, 13, 19, 23, 28, 31, 32, 44, 49 ])
-happyNumbers(100); // [ 1, 7, 10, 13, 19, 23, 28, 31, 32, 44, 49, 68, 70, 79, 82, 86, 91, 94, 97, 100 ])
+console.log(happyNumbers(800)); // [ 1, 7, 10, 13, 19, 23, 28, 31, 32, 44, 49, 68, 70, 79, 82, 86, 91, 94, 97, 100 ])
