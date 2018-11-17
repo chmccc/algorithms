@@ -5,7 +5,7 @@ class BinHeap {
   }
 
   buildHeap(list) {
-    // concat the list onto the heapList
+    // concat the list onto the heapList, technically an O(n) operation but could refactor heapList to be 0-indexed to fix
     this.heapList = [0, ...list];
     // set the size to be the length of the input list
     this.size = list.length;
