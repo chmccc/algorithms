@@ -52,7 +52,6 @@ const nextClosestTime = (time) => {
   timeString += bestHour.toString() + ':';
   if (bestMinute < 10) timeString += '0';
   timeString += bestMinute.toString();
-  console.log(timeString);
   return timeString;
 };
 
