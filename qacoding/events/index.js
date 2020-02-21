@@ -48,8 +48,6 @@ const requestAStarWarsCharacter = () => {
 };
 
 const button = document.getElementById('explore-button');
-
 button.addEventListener('click', () => {
-  console.log('button was clicked!');
-  requestAStarWarsCharacter();
-});
+  requestAStarWarsCharacter()
+})

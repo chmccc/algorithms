@@ -35,4 +35,11 @@ const plusOne = (digits) => {
 };
 
 const input = [9,9,9];
-console.log(plusOne(input).join(''));
+// console.log(plusOne(input).join(''));
+
+const circle = {
+  radius: 10,
+  perimeter: function() { return 2 * Math.PI * this.radius }
+};
+
+console.log(circle.perimeter())
